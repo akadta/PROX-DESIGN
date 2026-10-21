@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String @unique
+  password String
+
+  roleId Int?
+  role   Role? @relation(fields: [roleId], references: [id])
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  books     Book[]
+
+  mainUser         MainUser?
+  mainUserEmployee MainUserEmployee?
+
+  @@map("users")
+}
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+
+  @@map("roles")
+}
+
+model MainUser {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  email       String   @unique
+  address     String?
+  phoneNumber String
+
+  roleId Int?
+  role   MainUserRole? @relation(fields: [roleId], references: [id])
+
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  employees   MainUserEmployee[]
+
+  @@map("main_users")
+}
+
+// A standalone role table for main_users — same shape as Role
+// (name, slug, isActive), but scoped to this profile system.
+model MainUserRole {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mainUsers MainUser[]
+  employees MainUserEmployee[]
+
+  @@map("main_user_roles")
+}
+
+model MainUserEmployee {
+  id     Int  @id @default(autoincrement())
+
+  userId Int  @unique
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  mainUserId Int
+  mainUser   MainUser @relation(fields: [mainUserId], references: [id], onDelete: Cascade)
+
+  mainUserRoleId Int
+  mainUserRole   MainUserRole @relation(fields: [mainUserRoleId], references: [id])
+
+  name        String
+  email       String  @unique
+  address     String?
+  phoneNumber String
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mainUserId])
+  @@index([mainUserRoleId])
+  @@map("main_user_employees")
+}
+
+
+
+// schema.prisma
+model Book {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  widthPx     Int
+  heightPx    Int
+  unit        String   @default("px") // "cm" | "px" | "in"
+  locked      Boolean  @default(true)
+  coverImage  String?
+  isActive    Boolean  @default(true)
+  isPublished Boolean  @default(false)
+  publicSlug  String?  @unique
+  flipStyle   String   @default("realistic")
+  pageLayout  String   @default("duplex") // "duplex" | "simplex"
+
+  backCoverImage    String?
+  bindingSide       String   @default("right") // "left" | "right"
+  publicTemplate    String   @default("realistic")
+  pageNumberDefault Json?    // { enabled, position, color, fontSize, fontFamily, format }
+  coverContent      Json?
+  backCoverContent  Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  pages       Page[]
+
+  @@map("books")
+}
+
+model Page {
+  id           Int      @id @default(autoincrement())
+  bookId       Int
+  book         Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  order        Int
+  background   String?
+  previewImage String?  @db.Text
+  content      Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("pages")
+}
